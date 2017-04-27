@@ -3,8 +3,9 @@
 import * as lib from './index';
 import * as fs from 'fs';
 
-let outFile = process.argv.pop();
-let inFile = process.argv.pop();
+let outFile = process.argv[3] || './src/glue.ts' ;
+let inFile = process.argv[2];
+if(!inFile) throw 'Input file required';
 
 
 lib
