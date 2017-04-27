@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "declaration": false,
+        "noImplicitAny": false,
+        "removeComments": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "sourceMap": false,
+        "module": "commonjs",
+        "target": "es6",
+        "sourceRoot": "./src",
+        "inlineSourceMap": true,
+        "outDir": "./dist",
+        "typeRoots": [
+            "./node_modules/@types"
+        ]
+    },
+    "exclude": [
+        "./node_modules",
+        "dist"
+    ],
+    "compileOnSave": true
+}
