@@ -4,10 +4,11 @@ import {
 } from './glue';
 
 import * as express from "express";
+import * as bodyParser from "body-parser";
 
 class AppGuards implements Guards {
-    authorized(ctx: any) {
-        throw new Error('Method not implemented.');
+    async authorized(ctx: any) {
+        return;
     }
 }
 
@@ -39,5 +40,6 @@ class AuthenticationRoutes implements AuthenticationHandlers {
 
 setupAuthentication(new AuthenticationRoutes());
 let app = express();
+app.use(bodyParser.json())
 setup(app,new AppValidators(),new AppGuards());
 app.listen(4000);

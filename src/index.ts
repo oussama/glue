@@ -44,7 +44,7 @@ function addRoute(method:string,path:string,handler:any){
             res.status(data.status).send(data.error||data.data);
         })
         .catch(err=>{
-            res.status(500).send(err);
+            res.status(500).send({message:err.message,stack:err.stack.split("\\n")});
         });
     });
     console.log(method,path);
@@ -74,17 +74,10 @@ export function Err(error?:string,status:number=500):Res{
     }
 }
 
-export function NotFound(message?:string){
-    return Err(message || 'not found',404);
-}
-
-export function Forbidden(message?:string){
-    return Err(message || 'forbidden',404);
-}
-
-export function BadRequest(message?:string){
-    return Err(message || 'bad request',401);
-}
+export let NotFound = (message?:any)=> Err(message|| 'not found',404);
+export let Unauthorized = (message?:any)=> Err(message|| 'unauthorized',401);
+export let BadRequest = (message?:any)=> Err(message|| 'bad request',400);
+export let Forbidden = (message?:any)=> Err(message|| 'forbidden',403);
 
 export interface Context {
 
@@ -239,6 +232,26 @@ function parseObject(input: Element) {
         let type = elm.content.value.element;
         let typeName = type.replace(/\s/g, '');
         parse += `   output.${key} = parse${typeName}(input.${key});\n`;
+
+        let isRequired = false;
+        if (elm.attributes && elm.attributes.typeAttributes.indexOf('required') != -1) {
+            schema.required.push(key);
+            isRequired = true;
+            let args = ['input.' + key];
+            validations.push(`is.required(${args.join(',')})`);
+        }
+
+        if (['string', 'number'].indexOf(type) == -1) {
+            schema.properties[key] = { $ref: "#/definitions/" + typeName };
+            validations.push(isRequired ? `validate${typeName}(input.${key} )` : `( input.${key} ? validate${typeName}(input.${key} ) : false )`);
+        } else {
+            let prop: any = {
+                type,
+            }
+            schema.properties[key] = prop;
+
+        }
+
         if (elm.meta) {
             let desc = elm.meta.description;
             if (desc) {
@@ -269,24 +282,6 @@ function parseObject(input: Element) {
             }
         }
 
-        let isRequired = false;
-        if (elm.attributes && elm.attributes.typeAttributes.indexOf('required') != -1) {
-            schema.required.push(key);
-            isRequired = true;
-            let args = ['input.' + key];
-            validations.push(`is.required(${args.join(',')})`);
-        }
-
-        if (['string', 'number'].indexOf(type) == -1) {
-            schema.properties[key] = { $ref: "#/definitions/" + typeName };
-            validations.push(isRequired ? `validate${typeName}(input.${key} )` : `( input.${key} ? validate${typeName}(input.${key} ) : false )`);
-        } else {
-            let prop: any = {
-                type,
-            }
-            schema.properties[key] = prop;
-
-        }
     });
     schemas.definitions[schema.title.replace(/\s/g, '')] = schema;
     schemas.allOf.push({ $ref: "#/definitions/" + schema.title.replace(/\s/g, '') });
@@ -360,7 +355,8 @@ function parseResource(input: Element) {
         let handlerArgs = ['ctx'];
         args.forEach((arg, i) => {
             routes += `       let arg${i} = parse${arg}(ctx.params);
-                    if(validate${arg}(arg${i})) return BadRequest();
+                    let validationError = validate${arg}(arg${i});
+                    if(validationError) return BadRequest(validationError);
             `;
             handlerArgs.push('arg' + i);
         });
