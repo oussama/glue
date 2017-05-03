@@ -5,111 +5,8 @@ let protagonist = require('protagonist');
 
 
 let validationBuiltins = ['min', 'required', 'max', 'range', 'string'];
-let routes = `let _app;
-function addRoutes(){
-`;
-
-let functions = `
-
-let is = {
-    required:(input)=>{
-        if(input==undefined || input==null || input == '') return 'required';
-    },
-    range:(input,min,max)=>{
-        if(input<min || input>max) return 'out of range';
-    },
-    min:(input,min)=>{
-        if(input<min) return 'less than min '+min;
-    },
-    max:(input,max)=>{
-         if(input>max) return 'greater than max '+max;
-    },
-    string:(input)=>{
-         if(typeof input !='string') return 'must be string';
-    },
-}
 
 
-import * as validator from "validator";
-
-function addRoute(method:string,path:string,handler:any){
-    path = path.replace(/{/g,':').replace(/}/g,'');
-    _app[method.toLowerCase()](path ,function(req,res){
-        let params = Object.assign({},req.params);
-        params = Object.assign(params,req.body);
-        params = Object.assign(params,req.query);
-        let ctx = {req,res,params};
-        handler(ctx)
-        .then(data=>{
-            res.status(data.status).send(data.error||data.data);
-        })
-        .catch(err=>{
-            res.status(500).send({message:err.message,stack:err.stack.split("\\n")});
-        });
-    });
-    console.log(method,path);
-}
-export interface Error extends Res {
-    data?:any;
-    error?:string;
-    status:number;
-}
-export interface Res {
-    data?:any;
-    error?:string;
-    status:number;
-}
-export function Ok(data:any,status:number=200):Res {
-    return {
-        error:null,
-        data,
-        status,
-    }
-}
-export function Err(error?:string,status:number=500):Res{
-    return {
-        error,
-        data:null,
-        status,
-    }
-}
-
-export let NotFound = (message?:any)=> Err(message|| 'not found',404);
-export let Unauthorized = (message?:any)=> Err(message|| 'unauthorized',401);
-export let BadRequest = (message?:any)=> Err(message|| 'bad request',400);
-export let Forbidden = (message?:any)=> Err(message|| 'forbidden',403);
-
-export interface Context {
-
-}
-
-let validators:Validators;
-let guards:Guards;
-
-function _setup(_validators:Validators,_guards:Guards){
-    validators = _validators;
-    guards = _guards;
-}
-export function setup(app,validators:Validators,guards:Guards){
-    _app = app;
-    addRoutes();
-    _setup(validators,guards);
-}
-
-
-export function parsestring(input:any){
-    if(input == undefined || input == null) return undefined;
-    return input.toString();
-}
-export function parsenumber(input:any){
-    if(input == undefined || input == null) return undefined;
-    return parseFloat(input);
-}
-export function parseboolean(input:any){
-    if(input == undefined || input == null) return undefined;
-    return Boolean(input);
-}
-`;
 //let file = fs.readFileSync('./data/test.apib').toString();
 
 export function convert(file: string) {
@@ -123,48 +20,13 @@ export function convert(file: string) {
 
             parse(result.ast);
 
-            let handlersInterface = '';
-            let allhandlers = handlers;
-            for (let category in allhandlers) {
-                let handlers = allhandlers[category];
-                let structName = `${category}Handlers`;
-                let instanceName = `${category}HandlersInstance`
-                handlersInterface += `let ${instanceName}:${structName};\nexport interface ${structName} {\n`;
-                for (let key in handlers) {
-                    let args = handlers[key].map((arg, i) => `arg${i}:${arg}`);
-                    args.unshift('ctx:Context');
-                    handlersInterface += `  ${key}(${args.join(',')}):Promise<Res>;\n`;
-                }
-                handlersInterface += `}
-        export function setup${category}(handler:${structName}){
-            ${instanceName}=handler;
-        }
-        `;
-            }
-            let validatorsInterface = 'export interface Validators {\n';
-            for (let key in validators) {
-                let args = validators[key].map((arg, i) => `arg${i}:${arg}`);
-                validatorsInterface += `  ${key}(${args.join(',')});\n`;
-            }
-            validatorsInterface += '}\n';
 
-            let guardsInterface = 'export interface Guards {\n';
-            for (let key in guardsMap) {
-                let args = guardsMap[key].map((arg, i) => `arg${i}:${arg}`);
-                guardsInterface += `  ${key}(${args.join(',')}):Promise<any>;\n`;
-            }
-            guardsInterface += '}\n';
 
             //console.log(validatorsInterface);
             compile(schemas, 'MySchema')
                 .then(ts => {
-                    routes += '}\n';
-                    let out=  ts + '\n' + '\n'
-                        + validatorsInterface + '\n'
-                        + handlersInterface + '\n'
-                        + guardsInterface + '\n'
-                        + functions + '\n'
-                        + routes;
+                    let out = codegen(glue_ast);
+                    console.log(out);
                     resolve(out);
                 })
                 .catch(reject);
@@ -187,7 +49,7 @@ export interface Element {
 
 function parse(input: Element) {
     if (input.element == 'object') {
-        parseObject(input);
+        parseObject(input,'');
     } else if (input.element == 'resource') {
         parseResource(input);
     } else if (Array.isArray(input.content)) {
@@ -208,48 +70,40 @@ let validators: any = {};
 let handlers: any = {};
 let guards: any = {};
 
+import * as ast from "./ast";
+
+
+import { DataStructure, Property, AST, Route, RouteHandler, RouteGuard } from "./ast";
+import { genObject } from "./rust";
+import { genRoutes, codegen, getRouteFunction } from "./typescript";
+let glue_ast = new AST();
+
 let i = 0;
-function parseObject(input: Element) {
+function parseObject(input: Element,routeName:string) {
+
     if (!input.meta) {
-        input.meta = { id: 'Form' + (i++) }
+        input.meta = { id: routeName.split(/\s/g).map(capitalizeFirstLetter).join('')+'Form'  }//(i++) }
     }
 
-    let schema = {
-        title: input.meta.id,
-        type: "object",
-        properties: {},
-        required: []
-    }
+    let obj = new DataStructure(input.meta.id);
 
     let structName = input.meta.id.replace(/\s/g, '');
 
-    let parse = 'export function parse' + structName + '(input:any):' + structName + '{\n   if(!input) return undefined;\n  let output:any = {};\n';
-    let validate = 'export function validate' + structName + '(input:' + structName + '){\n     return ';
     let validations = [];
 
     input.content.map(elm => {
         let key = elm.content.key.content;
         let type = elm.content.value.element;
         let typeName = type.replace(/\s/g, '');
-        parse += `   output.${key} = parse${typeName}(input.${key});\n`;
+
+        let prop = new Property(key, type);
+        obj.props.push(prop);
+
+        //   parse += `   output.${key} = parse${typeName}(input.${key});\n`;
 
         let isRequired = false;
         if (elm.attributes && elm.attributes.typeAttributes.indexOf('required') != -1) {
-            schema.required.push(key);
-            isRequired = true;
-            let args = ['input.' + key];
-            validations.push(`is.required(${args.join(',')})`);
-        }
-
-        if (['string', 'number'].indexOf(type) == -1) {
-            schema.properties[key] = { $ref: "#/definitions/" + typeName };
-            validations.push(isRequired ? `validate${typeName}(input.${key} )` : `( input.${key} ? validate${typeName}(input.${key} ) : false )`);
-        } else {
-            let prop: any = {
-                type,
-            }
-            schema.properties[key] = prop;
-
+            prop.required = true;
         }
 
         if (elm.meta) {
@@ -263,52 +117,54 @@ function parseObject(input: Element) {
                         val = val.trim();
                         let args = val.split(/\s/g);
                         let method = args[0];
-                        args[0] = 'input.' + key;
-                        let isValidMethod = 'is' + capitalizeFirstLetter(method);
-                        if (validationBuiltins.indexOf(method) != -1) {
-                            validations.push(`is.${method}(${args.join(',')})`);
-                        } else if (validator[isValidMethod]) {
-                            validations.push(`!validator.${isValidMethod}(${args.join(',')})`);
-                        } else {
-                            validations.push(`validators.${method}(${args.join(',')})`);
-                            if (!validators[method]) {
-                                validators[method] = args.map(getType);
-                                // TEMP
-                                validators[method][0] = 'any';
-                            }
+                        args.shift();
+
+                        prop.addValidation(method, ...args);
+                        if (!glue_ast.data.validators.find(elm => elm.name == method)) {
+                            glue_ast.data.validators.push({ name: method, args: args.map(getType) });
                         }
+
                     });
                 }
             }
         }
 
     });
-    schemas.definitions[schema.title.replace(/\s/g, '')] = schema;
-    schemas.allOf.push({ $ref: "#/definitions/" + schema.title.replace(/\s/g, '') });
 
-    validate += validations.join(' || ') + ';\n}';
-    parse += '    return output;\n}\n';
-    functions += parse;
-    functions += validate;
+    glue_ast.data.objects.push(obj);
+
     return structName;
 }
 
-function capitalizeFirstLetter(string) {
-    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
-}
 
-let guardsMap: any = {};
+
+
+let routes: Route[] = [];
+
 function parseResource(input: Element) {
 
     let category = input.parent.attributes.name || 'global';
+
+    let route = routes.find(elm => elm.name == category);
+    if (!route) {
+        route = new Route();
+        route.name = category;
+    }
+
+
     let basepath = input.uriTemplate;
 
     for (let action of input.actions) {
+
         let path = basepath;
         if (action.attributes && action.attributes.uriTemplate && path != action.attributes.uriTemplate) {
             path += action.attributes.uriTemplate;
         }
-        console.log(action.method, path);
+
+        let routeHandler = new RouteHandler(action.name, action.method, path);
+        route.handlers.push(routeHandler);
+
+        // parse guards
         let desc = action.description.split('\n')[0];
         let array = desc.split('(');
         let guardRun = '';
@@ -316,53 +172,37 @@ function parseResource(input: Element) {
             let guards = array[1].split(')')[0].split(',');
             for (let guard of guards) {
                 let args = guard.split(/\s/g);
+                let routeGuard = new RouteGuard();
+                routeGuard.name = args.shift();
+                routeGuard.args = args;
+                routeHandler.guards.push(routeGuard);
 
-                let method = args[0];
-                args[0] = 'ctx';
-                guardRun += `let ${method}Guard = await guards.${method}(${args.join(',')});
-                            if(${method}Guard) return ${method}Guard\n`;
-                if (!guardsMap[method]) {
-                    guardsMap[method] = args.map(getType);
-                    // TEMP
-                    guardsMap[method][0] = 'any';
+                if (!glue_ast.data.guards.find(elm => elm.name == routeGuard.name)) {
+                    glue_ast.data.guards.push({ name: routeGuard.name, args: args.map(getType) });
                 }
+
             }
         }
-        let args = [];
+
+
         if (action.examples && action.examples[0] && action.examples[0].requests && action.examples[0].requests[0]) {
             let request = action.examples[0].requests[0];
             if (request.content && request.content[0] && request.content[0].element == 'dataStructure') {
                 let content = request.content[0].content[0];
+                let type;
                 if (content.element == 'object') {
-                    let structName = parseObject(content);
-                    args = [structName];
+                    type = parseObject(content,routeHandler.name);
                 } else {
-                    args = [content.element.replace(/\s/g, '')];
+                    type = content.element.replace(/\s/g, '');
                 }
+                routeHandler.inputs = [{ name: 'arg0', type, kind: 'params' }];
+
             }
         }
-        let handlerName = action.name.split(/\s/g).map(capitalizeFirstLetter).join('');
-        //console.log('handlerName', action.name, handlerName, path);
-        if (!handlerName) handlerName = action.method.toLowerCase() +
-            path.split('/').filter(elm => elm)
-                .map(elm => elm.replace(/{/g, '')
-                    .replace(/}/g, ''))
-                .map(capitalizeFirstLetter)
-                .join('');
-        if (!handlers[category]) handlers[category] = {};
-        handlers[category][handlerName] = args;
-        routes += `   addRoute('${action.method}','${path}',async(ctx)=>{\n` + guardRun;
-        let handlerArgs = ['ctx'];
-        args.forEach((arg, i) => {
-            routes += `       let arg${i} = parse${arg}(ctx.params);
-                    let validationError = validate${arg}(arg${i});
-                    if(validationError) return BadRequest(validationError);
-            `;
-            handlerArgs.push('arg' + i);
-        });
-        routes += `    return ${category}HandlersInstance.${handlerName}(${handlerArgs.join(',')});
-        })\n`;
+
     }
+
+    glue_ast.data.routes.push(route);
 
 }
 
@@ -377,4 +217,8 @@ function isNumber(input: string) {
 
 function isBasicType(input: string) {
     return ['string', 'number'].indexOf(input) != -1;
+}
+
+function capitalizeFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
 }

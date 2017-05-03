@@ -1,6 +1,6 @@
 import {
     AuthenticationHandlers,setupAuthentication,
-    Guards, Validators, Context, Form1, Form0, Ok, Err, NotFound, EmailCreds, Res, setup
+    Guards, Validators, Context, Ok, Err, NotFound, EmailCreds, Res, setup, RegisterForm, GetQuestionByIdForm, ChangePasswordForm, routers
 } from './glue';
 
 import * as express from "express";
@@ -13,6 +13,10 @@ class AppGuards implements Guards {
 }
 
 class AppValidators implements Validators {
+    string(input: any) {
+        throw new Error('Method not implemented.');
+    }
+
     pair(arg0: any) {
         if(arg0%2!=0) return 'not pair';
     }
@@ -20,11 +24,11 @@ class AppValidators implements Validators {
 
 class AuthenticationRoutes implements AuthenticationHandlers {
 
-  async GetQuestionById(ctx:Context,arg0:Form0){
+  async GetQuestionById(ctx:Context,arg0:GetQuestionByIdForm){
       return Ok({id:arg0.id});
   }
   
-  async Register(ctx:Context,input:Form0){
+  async Register(ctx:Context,input:RegisterForm){
       
     return Ok('');
   }
@@ -33,13 +37,22 @@ class AuthenticationRoutes implements AuthenticationHandlers {
       return NotFound();
   }
 
-  async ChangePassword(ctx:Context,input:Form1){
+  async ChangePassword(ctx:Context,input:ChangePasswordForm){
     return Ok('');
   }
 }
 
 setupAuthentication(new AuthenticationRoutes());
-let app = express();
+
+import * as http from "http";
+
+let app = require('express')();
+let server = require('http').Server(app);
+let io = require('socket.io')(server, { path: '/ws' });
+
 app.use(bodyParser.json())
-setup(app,new AppValidators(),new AppGuards());
-app.listen(4000);
+
+routers.express.setup(app);
+routers.socketio.setup(io);
+setup(new AppValidators(),new AppGuards());
+server.listen(4000);

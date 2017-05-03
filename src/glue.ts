@@ -1,56 +1,3 @@
-export interface Form0 {
-  id: number;
-  [k: string]: any;
-}
-export interface Form1 {
-  auth?: EmailCreds;
-  user?: UserInfo;
-  [k: string]: any;
-}
-export interface EmailCreds {
-  email: string;
-  password: string;
-  [k: string]: any;
-}
-export interface UserInfo {
-  first_name: string;
-  last_name: string;
-  birth_date?: string;
-  birth_place?: string;
-  [k: string]: any;
-}
-export interface Form2 {
-  current_password: string;
-  new_password: string;
-  [k: string]: any;
-}
-export interface AuthResponse {
-  token?: string;
-  user_id?: number;
-  email: EmailCreds;
-  [k: string]: any;
-}
-
-
-export interface Validators {
-  pair(arg0:any);
-}
-
-let AuthenticationHandlersInstance:AuthenticationHandlers;
-export interface AuthenticationHandlers {
-  GetQuestionById(ctx:Context,arg0:Form0):Promise<Res>;
-  Register(ctx:Context,arg0:Form1):Promise<Res>;
-  Login(ctx:Context,arg0:EmailCreds):Promise<Res>;
-  ChangePassword(ctx:Context,arg0:Form2):Promise<Res>;
-}
-        export function setupAuthentication(handler:AuthenticationHandlers){
-            AuthenticationHandlersInstance=handler;
-        }
-        
-export interface Guards {
-  authorized(arg0:any):Promise<any>;
-}
-
 
 
 let is = {
@@ -69,28 +16,88 @@ let is = {
     string:(input)=>{
          if(typeof input !='string') return 'must be string';
     },
+    email:(input)=>{
+        if(!validator.isEmail(input)) return 'must be email';
+    }
 }
 
 
 import * as validator from "validator";
 
-function addRoute(method:string,path:string,handler:any){
-    path = path.replace(/{/g,':').replace(/}/g,'');
-    _app[method.toLowerCase()](path ,function(req,res){
-        let params = Object.assign({},req.params);
-        params = Object.assign(params,req.body);
-        params = Object.assign(params,req.query);
-        let ctx = {req,res,params};
-        handler(ctx)
-        .then(data=>{
-            res.status(data.status).send(data.error||data.data);
-        })
-        .catch(err=>{
-            res.status(500).send({message:err.message,stack:err.stack.split("\n")});
-        });
-    });
-    console.log(method,path);
+
+export class AbstractRouter {
+
+    addRoute(method:string,path:string,handler:any){
+        throw "unimplemented";
+    }
+    setup(){
+        
+    }
+    addRoutes(){
+        addRoutes(this.addRoute);
+    }
 }
+
+export class ExpressRouter {
+    app;
+    setup(app){
+        this.app = app;
+        addRoutes(this);
+    }
+    addRoute(method:string,path:string,handler:any){
+        path = path.replace(/{/g,':').replace(/}/g,'');
+        this.app[method.toLowerCase()](path ,function(req,res){
+            let params = Object.assign({},req.params);
+            params = Object.assign(params,req.body);
+            params = Object.assign(params,req.query);
+            let ctx = {req,res,params};
+            handler(ctx)
+            .then(data=>{
+                res.status(data.status).send(data.error||data.data);
+            })
+            .catch(err=>{
+                res.status(500).send({message:err.message,stack:err.stack.split("\n")});
+            });
+        });
+        console.log(method,path);
+    }
+}
+
+import * as querystring from 'querystring';
+
+export class SocketIORouter {
+    io;
+    setup(io){
+        this.io = io;
+        io.on('connection', (socket)=> {
+            socket.timestamp = {};
+            socket.on('disconnect', () => {
+                //auth.events.emit('disconnect', socket);
+            });
+
+            var params = querystring.parse(socket.request.url.split('?')[1]);
+            socket.params = params;
+            socket.addRoute = this.addRoute.bind(socket);
+            addRoutes(socket);
+
+        });
+    }
+
+    addRoute(method,path, handler: Function) {
+        let socket:any = this;
+        socket.on(method.toLowerCase()+path, (data) => {
+            let ctx = {socket,params:Object.assign(socket.params,data)};
+            handler(ctx)
+            .then(data=>{
+                socket.emit(data.__id, data);
+            })
+            .catch(err=>{
+                socket.emit(data.id, { status:500, error: {message:err.message,stack:err.stack.split("\n")} });
+            });
+        });
+    }
+}
+
 export interface Error extends Res {
     data?:any;
     error?:string;
@@ -128,14 +135,17 @@ export interface Context {
 let validators:Validators;
 let guards:Guards;
 
-function _setup(_validators:Validators,_guards:Guards){
+
+
+
+export let routers = {
+    express: new ExpressRouter(),
+    socketio: new SocketIORouter()
+}
+
+export function setup(_validators:Validators,_guards:Guards){
     validators = _validators;
     guards = _guards;
-}
-export function setup(app,validators:Validators,guards:Guards){
-    _app = app;
-    addRoutes();
-    _setup(validators,guards);
 }
 
 
@@ -151,89 +161,197 @@ export function parseboolean(input:any){
     if(input == undefined || input == null) return undefined;
     return Boolean(input);
 }
-export function parseForm0(input:any):Form0{
-   if(!input) return undefined;
-  let output:any = {};
-   output.id = parsenumber(input.id);
-    return output;
-}
-export function validateForm0(input:Form0){
-     return is.required(input.id) || is.range(input.id,10,100) || validators.pair(input.id);
-}export function parseForm1(input:any):Form1{
-   if(!input) return undefined;
-  let output:any = {};
-   output.auth = parseEmailCreds(input.auth);
-   output.user = parseUserInfo(input.user);
-    return output;
-}
-export function validateForm1(input:Form1){
-     return ( input.auth ? validateEmailCreds(input.auth ) : false ) || ( input.user ? validateUserInfo(input.user ) : false );
-}export function parseForm2(input:any):Form2{
-   if(!input) return undefined;
-  let output:any = {};
-   output.current_password = parsestring(input.current_password);
-   output.new_password = parsestring(input.new_password);
-    return output;
-}
-export function validateForm2(input:Form2){
-     return is.required(input.current_password) || is.min(input.current_password,8) || is.max(input.current_password,20) || is.required(input.new_password) || is.min(input.new_password,8) || is.max(input.new_password,20);
-}export function parseEmailCreds(input:any):EmailCreds{
-   if(!input) return undefined;
-  let output:any = {};
-   output.email = parsestring(input.email);
-   output.password = parsestring(input.password);
-    return output;
-}
-export function validateEmailCreds(input:EmailCreds){
-     return is.required(input.email) || !validator.isEmail(input.email) || is.required(input.password);
-}export function parseUserInfo(input:any):UserInfo{
-   if(!input) return undefined;
-  let output:any = {};
-   output.first_name = parsestring(input.first_name);
-   output.last_name = parsestring(input.last_name);
-   output.birth_date = parsestring(input.birth_date);
-   output.birth_place = parsestring(input.birth_place);
-    return output;
-}
-export function validateUserInfo(input:UserInfo){
-     return is.required(input.first_name) || is.min(input.first_name,10) || is.max(input.first_name,100) || is.required(input.last_name) || is.string(input.birth_date);
-}export function parseAuthResponse(input:any):AuthResponse{
-   if(!input) return undefined;
-  let output:any = {};
-   output.token = parsestring(input.token);
-   output.user_id = parsenumber(input.user_id);
-   output.email = parseEmailCreds(input.email);
-    return output;
-}
-export function validateAuthResponse(input:AuthResponse){
-     return is.range(input.user_id,10,100) || is.required(input.email) || validateEmailCreds(input.email );
-}
-let _app;
-function addRoutes(){
-   addRoute('GET','/auth/{question_id}',async(ctx)=>{
-       let arg0 = parseForm0(ctx.params);
-                    let validationError = validateForm0(arg0);
-                    if(validationError) return BadRequest(validationError);
-                return AuthenticationHandlersInstance.GetQuestionById(ctx,arg0);
-        })
-   addRoute('POST','/auth/register',async(ctx)=>{
-       let arg0 = parseForm1(ctx.params);
-                    let validationError = validateForm1(arg0);
-                    if(validationError) return BadRequest(validationError);
-                return AuthenticationHandlersInstance.Register(ctx,arg0);
-        })
-   addRoute('POST','/auth/login',async(ctx)=>{
-let authorizedGuard = await guards.authorized(ctx);
+
+export interface Validators {
+              pair(input:any);
+  string(input:any);
+            }
+    export interface Guards {
+          authorized(ctx:Context):Promise<any>;
+
+        }
+    export interface GetQuestionByIdForm {
+      id: number
+    }
+
+        export function parseGetQuestionByIdForm(input:any){
+            if(!input) return undefined;
+            return {
+                 id:parsenumber(input.id)
+            }
+        }
+        export function validateGetQuestionByIdForm(input:GetQuestionByIdForm){
+            if(input.id != undefined && input.id != null ){
+        let err = is.range(input.id,10,100) || validators.pair(input.id,)
+        if(err) return 'id: '+err;
+        }else{
+            return "id is required" ;
+        }
+        }
+    
+export interface RegisterForm {
+      auth: EmailCreds;
+  user: UserInfo
+    }
+
+        export function parseRegisterForm(input:any){
+            if(!input) return undefined;
+            return {
+                 auth:parseEmailCreds(input.auth),
+ user:parseUserInfo(input.user)
+            }
+        }
+        export function validateRegisterForm(input:RegisterForm){
+            
+        }
+    
+export interface ChangePasswordForm {
+      current_password: string;
+  new_password: string
+    }
+
+        export function parseChangePasswordForm(input:any){
+            if(!input) return undefined;
+            return {
+                 current_password:parsestring(input.current_password),
+ new_password:parsestring(input.new_password)
+            }
+        }
+        export function validateChangePasswordForm(input:ChangePasswordForm){
+            if(input.current_password != undefined && input.current_password != null ){
+        let err = is.min(input.current_password,8) || is.max(input.current_password,20)
+        if(err) return 'current_password: '+err;
+        }else{
+            return "current_password is required" ;
+        }
+if(input.new_password != undefined && input.new_password != null ){
+        let err = is.min(input.new_password,8) || is.max(input.new_password,20)
+        if(err) return 'new_password: '+err;
+        }else{
+            return "new_password is required" ;
+        }
+        }
+    
+export interface EmailCreds {
+      email: string;
+  password: string
+    }
+
+        export function parseEmailCreds(input:any){
+            if(!input) return undefined;
+            return {
+                 email:parsestring(input.email),
+ password:parsestring(input.password)
+            }
+        }
+        export function validateEmailCreds(input:EmailCreds){
+            if(input.email != undefined && input.email != null ){
+        let err = is.email(input.email,)
+        if(err) return 'email: '+err;
+        }else{
+            return "email is required" ;
+        }
+if(input.password == undefined || input.password == null )
+                return 'password is required';
+        }
+    
+export interface UserInfo {
+      first_name: string;
+  last_name: string;
+  birth_date: string;
+  birth_place: string
+    }
+
+        export function parseUserInfo(input:any){
+            if(!input) return undefined;
+            return {
+                 first_name:parsestring(input.first_name),
+ last_name:parsestring(input.last_name),
+ birth_date:parsestring(input.birth_date),
+ birth_place:parsestring(input.birth_place)
+            }
+        }
+        export function validateUserInfo(input:UserInfo){
+            if(input.first_name != undefined && input.first_name != null ){
+        let err = is.min(input.first_name,10) || is.max(input.first_name,100)
+        if(err) return 'first_name: '+err;
+        }else{
+            return "first_name is required" ;
+        }
+if(input.last_name == undefined || input.last_name == null )
+                return 'last_name is required';
+if(input.birth_date != undefined && input.birth_date != null ){
+        let err = validators.string(input.birth_date,)
+        if(err) return 'birth_date: '+err;
+        }
+        }
+    
+export interface AuthResponse {
+      token: string;
+  user_id: number;
+  email: EmailCreds
+    }
+
+        export function parseAuthResponse(input:any){
+            if(!input) return undefined;
+            return {
+                 token:parsestring(input.token),
+ user_id:parsenumber(input.user_id),
+ email:parseEmailCreds(input.email)
+            }
+        }
+        export function validateAuthResponse(input:AuthResponse){
+            if(input.user_id != undefined && input.user_id != null ){
+        let err = is.range(input.user_id,10,100)
+        if(err) return 'user_id: '+err;
+        }
+if(input.email == undefined || input.email == null )
+                return 'email is required';
+        }
+    
+let AuthenticationHandlersInstance:AuthenticationHandlers;
+    export function setupAuthentication(handler:AuthenticationHandlers){
+        AuthenticationHandlersInstance=handler;
+    }
+    export interface AuthenticationHandlers {
+           GetQuestionById(ctx:Context,arg0:GetQuestionByIdForm):Promise<Res>;
+  Register(ctx:Context,arg0:RegisterForm):Promise<Res>;
+  Login(ctx:Context,arg0:EmailCreds):Promise<Res>;
+  ChangePassword(ctx:Context,arg0:ChangePasswordForm):Promise<Res>;
+    }
+    export function addRoutes(router){
+        router.addRoute('GET','/auth/{question_id}',async(ctx)=>{
+                
+                let arg0 = parseGetQuestionByIdForm(ctx.params);
+                        let validationError = validateGetQuestionByIdForm(arg0);
+                        if(validationError) return BadRequest('arg0: '+validationError);
+                        
+                return AuthenticationHandlersInstance.GetQuestionById(ctx,arg0)
+            });
+router.addRoute('POST','/auth/register',async(ctx)=>{
+                
+                let arg0 = parseRegisterForm(ctx.params);
+                        let validationError = validateRegisterForm(arg0);
+                        if(validationError) return BadRequest('arg0: '+validationError);
+                        
+                return AuthenticationHandlersInstance.Register(ctx,arg0)
+            });
+router.addRoute('POST','/auth/login',async(ctx)=>{
+                let authorizedGuard = await guards.authorized(ctx);
                             if(authorizedGuard) return authorizedGuard
-       let arg0 = parseEmailCreds(ctx.params);
-                    let validationError = validateEmailCreds(arg0);
-                    if(validationError) return BadRequest(validationError);
-                return AuthenticationHandlersInstance.Login(ctx,arg0);
-        })
-   addRoute('POST','/auth/password',async(ctx)=>{
-       let arg0 = parseForm2(ctx.params);
-                    let validationError = validateForm2(arg0);
-                    if(validationError) return BadRequest(validationError);
-                return AuthenticationHandlersInstance.ChangePassword(ctx,arg0);
-        })
-}
+
+                let arg0 = parseEmailCreds(ctx.params);
+                        let validationError = validateEmailCreds(arg0);
+                        if(validationError) return BadRequest('arg0: '+validationError);
+                        
+                return AuthenticationHandlersInstance.Login(ctx,arg0)
+            });
+router.addRoute('POST','/auth/password',async(ctx)=>{
+                
+                let arg0 = parseChangePasswordForm(ctx.params);
+                        let validationError = validateChangePasswordForm(arg0);
+                        if(validationError) return BadRequest('arg0: '+validationError);
+                        
+                return AuthenticationHandlersInstance.ChangePassword(ctx,arg0)
+            });;
+    }

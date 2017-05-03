@@ -6,7 +6,7 @@ Polls is a simple API allowing consumers to view polls and vote in them.
 
 # /auth
 
-## get question by id [GET /{question_id}]
+## Get question by id [GET /{question_id}]
 + Parameters
     + question_id (number) - ID of the Question in the form of an integer
         (numeric)
@@ -18,7 +18,6 @@ Polls is a simple API allowing consumers to view polls and vote in them.
 
         Hello, world!
 
-
 ## register [POST /register]
 
 You may create your own question using this action. It takes a JSON object
@@ -27,7 +26,7 @@ containing a question and a collection of answers in the form of choices.
 + auth (Email Creds) - auth part
 + user (User Info) - user data
 
-+ Request  (application/json)
++ Request (application/json)
     + Attributes
         + auth (Email Creds) - auth part
         + user (User Info) - user data
