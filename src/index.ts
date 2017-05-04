@@ -6,7 +6,7 @@ let protagonist = require('protagonist');
 
 let validationBuiltins = ['min', 'required', 'max', 'range', 'string'];
 
-
+import * as angular from "./angular";
 //let file = fs.readFileSync('./data/test.apib').toString();
 
 export function convert(file: string) {
@@ -26,6 +26,10 @@ export function convert(file: string) {
             compile(schemas, 'MySchema')
                 .then(ts => {
                     let out = codegen(glue_ast);
+
+
+                    let ng = angular.codegen(glue_ast);
+                    fs.writeFileSync('./src/GlueService.ts',ng);
                     console.log(out);
                     resolve(out);
                 })

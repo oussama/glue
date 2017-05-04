@@ -89,7 +89,9 @@ export function genRoutes(route: Route) {
 
 
 export function getRouteFunction(route: RouteHandler) {
-    let handlerName = route.name.split(/\s/g).map(capitalizeFirstLetter).join('');
+    let tokens = route.name.split(/\s/g).map(capitalizeFirstLetter);
+    let firstToken = tokens.shift().toLowerCase();
+    let handlerName = firstToken+tokens.join('');
 
     //console.log('handlerName', action.name, handlerName, path);
     if (!handlerName) handlerName = route.method.toLowerCase() +

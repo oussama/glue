@@ -289,14 +289,14 @@ function addRoutes(router) {
         let validationError = validateGetQuestionByIdForm(arg0);
         if (validationError)
             return exports.BadRequest('arg0: ' + validationError);
-        return AuthenticationHandlersInstance.GetQuestionById(ctx, arg0);
+        return AuthenticationHandlersInstance.getQuestionById(ctx, arg0);
     }));
     router.addRoute('POST', '/auth/register', (ctx) => __awaiter(this, void 0, void 0, function* () {
         let arg0 = parseRegisterForm(ctx.params);
         let validationError = validateRegisterForm(arg0);
         if (validationError)
             return exports.BadRequest('arg0: ' + validationError);
-        return AuthenticationHandlersInstance.Register(ctx, arg0);
+        return AuthenticationHandlersInstance.register(ctx, arg0);
     }));
     router.addRoute('POST', '/auth/login', (ctx) => __awaiter(this, void 0, void 0, function* () {
         let authorizedGuard = yield guards.authorized(ctx);
@@ -306,14 +306,14 @@ function addRoutes(router) {
         let validationError = validateEmailCreds(arg0);
         if (validationError)
             return exports.BadRequest('arg0: ' + validationError);
-        return AuthenticationHandlersInstance.Login(ctx, arg0);
+        return AuthenticationHandlersInstance.login(ctx, arg0);
     }));
     router.addRoute('POST', '/auth/password', (ctx) => __awaiter(this, void 0, void 0, function* () {
         let arg0 = parseChangePasswordForm(ctx.params);
         let validationError = validateChangePasswordForm(arg0);
         if (validationError)
             return exports.BadRequest('arg0: ' + validationError);
-        return AuthenticationHandlersInstance.ChangePassword(ctx, arg0);
+        return AuthenticationHandlersInstance.changePassword(ctx, arg0);
     }));
     ;
 }

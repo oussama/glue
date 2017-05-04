@@ -314,10 +314,10 @@ let AuthenticationHandlersInstance:AuthenticationHandlers;
         AuthenticationHandlersInstance=handler;
     }
     export interface AuthenticationHandlers {
-           GetQuestionById(ctx:Context,arg0:GetQuestionByIdForm):Promise<Res>;
-  Register(ctx:Context,arg0:RegisterForm):Promise<Res>;
-  Login(ctx:Context,arg0:EmailCreds):Promise<Res>;
-  ChangePassword(ctx:Context,arg0:ChangePasswordForm):Promise<Res>;
+           getQuestionById(ctx:Context,arg0:GetQuestionByIdForm):Promise<Res>;
+  register(ctx:Context,arg0:RegisterForm):Promise<Res>;
+  login(ctx:Context,arg0:EmailCreds):Promise<Res>;
+  changePassword(ctx:Context,arg0:ChangePasswordForm):Promise<Res>;
     }
     export function addRoutes(router){
         router.addRoute('GET','/auth/{question_id}',async(ctx)=>{
@@ -326,7 +326,7 @@ let AuthenticationHandlersInstance:AuthenticationHandlers;
                         let validationError = validateGetQuestionByIdForm(arg0);
                         if(validationError) return BadRequest('arg0: '+validationError);
                         
-                return AuthenticationHandlersInstance.GetQuestionById(ctx,arg0)
+                return AuthenticationHandlersInstance.getQuestionById(ctx,arg0)
             });
 router.addRoute('POST','/auth/register',async(ctx)=>{
                 
@@ -334,7 +334,7 @@ router.addRoute('POST','/auth/register',async(ctx)=>{
                         let validationError = validateRegisterForm(arg0);
                         if(validationError) return BadRequest('arg0: '+validationError);
                         
-                return AuthenticationHandlersInstance.Register(ctx,arg0)
+                return AuthenticationHandlersInstance.register(ctx,arg0)
             });
 router.addRoute('POST','/auth/login',async(ctx)=>{
                 let authorizedGuard = await guards.authorized(ctx);
@@ -344,7 +344,7 @@ router.addRoute('POST','/auth/login',async(ctx)=>{
                         let validationError = validateEmailCreds(arg0);
                         if(validationError) return BadRequest('arg0: '+validationError);
                         
-                return AuthenticationHandlersInstance.Login(ctx,arg0)
+                return AuthenticationHandlersInstance.login(ctx,arg0)
             });
 router.addRoute('POST','/auth/password',async(ctx)=>{
                 
@@ -352,6 +352,6 @@ router.addRoute('POST','/auth/password',async(ctx)=>{
                         let validationError = validateChangePasswordForm(arg0);
                         if(validationError) return BadRequest('arg0: '+validationError);
                         
-                return AuthenticationHandlersInstance.ChangePassword(ctx,arg0)
+                return AuthenticationHandlersInstance.changePassword(ctx,arg0)
             });;
     }

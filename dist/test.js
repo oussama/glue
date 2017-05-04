@@ -27,22 +27,22 @@ class AppValidators {
     }
 }
 class AuthenticationRoutes {
-    GetQuestionById(ctx, arg0) {
+    getQuestionById(ctx, arg0) {
         return __awaiter(this, void 0, void 0, function* () {
             return glue_1.Ok({ id: arg0.id });
         });
     }
-    Register(ctx, input) {
+    register(ctx, input) {
         return __awaiter(this, void 0, void 0, function* () {
             return glue_1.Ok('');
         });
     }
-    Login(ctx, input) {
+    login(ctx, input) {
         return __awaiter(this, void 0, void 0, function* () {
             return glue_1.NotFound();
         });
     }
-    ChangePassword(ctx, input) {
+    changePassword(ctx, input) {
         return __awaiter(this, void 0, void 0, function* () {
             return glue_1.Ok('');
         });

@@ -24,20 +24,20 @@ class AppValidators implements Validators {
 
 class AuthenticationRoutes implements AuthenticationHandlers {
 
-  async GetQuestionById(ctx:Context,arg0:GetQuestionByIdForm){
+  async getQuestionById(ctx:Context,arg0:GetQuestionByIdForm){
       return Ok({id:arg0.id});
   }
   
-  async Register(ctx:Context,input:RegisterForm){
+  async register(ctx:Context,input:RegisterForm){
       
     return Ok('');
   }
 
-  async Login(ctx:Context,input:EmailCreds){
+  async login(ctx:Context,input:EmailCreds){
       return NotFound();
   }
 
-  async ChangePassword(ctx:Context,input:ChangePasswordForm){
+  async changePassword(ctx:Context,input:ChangePasswordForm){
     return Ok('');
   }
 }
