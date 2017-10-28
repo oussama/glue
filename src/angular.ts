@@ -11,7 +11,7 @@ function genRoutes(route: Route) {
 
         ${route.handlers.map(handler=>
             `${getRouteFunction(handler)}(${handler.inputs.map(input=>`${input.name}:${input.type}`).join(',')}){
-                return this.service.json('${handler.method.toLowerCase()}','${handler.path}',${handler.inputs[0].name})    
+                return this.service.json('${handler.method.toLowerCase()}','${handler.path}',${handler.inputs.length? handler.inputs[0].name : null})    
             }`    
         ).join('\n')}
     }

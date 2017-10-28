@@ -29,7 +29,7 @@ export function convert(file: string) {
 
 
                     let ng = angular.codegen(glue_ast);
-                    fs.writeFileSync('./src/GlueService.ts',ng);
+                    //fs.writeFileSync('./src/GlueService.ts',ng);
                     console.log(out);
                     resolve(out);
                 })
@@ -42,6 +42,7 @@ export type ElementType = 'dataStructure' | 'member' | 'object' | 'resource';
 
 export interface Element {
     element: ElementType;
+    name?:string,
     content?: any,// Element[] | {key:any,value:any},
     meta?: {
         id: string
@@ -94,7 +95,9 @@ function parseObject(input: Element,routeName:string) {
     let structName = input.meta.id.replace(/\s/g, '');
 
     let validations = [];
-
+    if(!input.content){
+        console.error(input.meta.id,'has no fields');
+    }
     input.content.map(elm => {
         let key = elm.content.key.content;
         let type = elm.content.value.element;
@@ -149,11 +152,15 @@ function parseResource(input: Element) {
 
     let category = input.parent.attributes.name || 'global';
 
+    console.log(input);
     let route = routes.find(elm => elm.name == category);
     if (!route) {
         route = new Route();
         route.name = category;
+        if(input.name && input.name!=category) route.name+=input.name;
     }
+
+    route.name = route.name.replace(/ /g,'');
 
 
     let basepath = input.uriTemplate;
