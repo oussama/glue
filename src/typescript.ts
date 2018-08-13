@@ -284,7 +284,8 @@ export interface Res {
 export var ContentType = {
     Json:'application/json',
     TextCss:'text/css',
-    Javascript:'application/x-javascript'
+    Javascript:'application/x-javascript',
+    Xml:'application/xml',
 }
 
 export function Ok(data:any,status:number=200,contentType=ContentType.Json):Res {
