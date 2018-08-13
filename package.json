@@ -1,6 +1,6 @@
 {
   "name": "glue-cli",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "dist/index.js",
   "author": "Oussama Gammoudi",
   "license": "MIT",
@@ -18,8 +18,8 @@
     "body-parser": "^1.17.1",
     "cli-color": "^1.2.0",
     "express": "^4.15.2",
-    "json-schema-to-typescript": "^4.1.4",
-    "protagonist": "^1.6.7",
+    "json-schema-to-typescript": "5.5.0",
+    "drafter.js": "2.6.7",
     "socket.io": "^1.7.3",
     "validator": "^7.0.0"
   },

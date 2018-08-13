@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as validator from "validator";
 
-let protagonist = require('protagonist');
+let drafter = require('drafter.js');
 
 
 let validationBuiltins = ['min', 'required', 'max', 'range', 'string'];
@@ -12,7 +12,7 @@ import * as angular from "./angular";
 export function convert(file: string) {
     return new Promise((resolve, reject) => {
 
-        protagonist.parse(file, { type: 'ast' }, function (error, result) {
+        drafter.parse(file, { type: 'ast' }, function (error, result) {
             if (error) {
                 console.log(error);
                 return;
